@@ -1,0 +1,14 @@
+# Binaries
+bin/
+*.exe
+*.o
+
+# Save files
+*.zpk
+*.dat
+
+# IDE
+.vscode/
+
+# Build
+Makefile
