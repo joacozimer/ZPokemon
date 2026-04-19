@@ -12,6 +12,7 @@
 #include "Utils.h"
 #include "Misiones.h"
 #include "Registro.h"
+#include "Torre.h"
 
 #define COLOR_DEFAULT 7
 #define COLOR_TITULO 11 
@@ -76,7 +77,7 @@ void MostrarMenuPrincipal(Jugador* jugador) {
         MoverCursor(bXRight, 12); CambiarColor(11); printf("[ MIS POKEMONS    ]");
         
         MoverCursor(bXLeft, 14); CambiarColor(14); printf("[ TIENDA POKEMON  ]");
-        MoverCursor(bXRight, 14); CambiarColor(13); printf("[ MISIONES        ]");
+        MoverCursor(bXRight, 14); CambiarColor(13); printf("[ MODO TORRE      ]");
         
         MoverCursor(bXLeft, 16); CambiarColor(13); printf("[ POKEDEX         ]");
         MoverCursor(bXRight, 16); CambiarColor(12); printf("[ GUARDAR Y SALIR ]");
@@ -94,7 +95,7 @@ void MostrarMenuPrincipal(Jugador* jugador) {
             MostrarTienda(jugador);
             BorrarPantallaCompleta();
         } else if (mouseEnRango(bXRight, 14, bXRight + 19, 14, mouse)) {
-            MostrarMenuMisiones(jugador);
+            IniciarTorre(jugador);
             BorrarPantallaCompleta();
         } else if (mouseEnRango(bXLeft, 16, bXLeft + 19, 16, mouse)) {
             MostrarPokedex();

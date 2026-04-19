@@ -4,7 +4,14 @@ ZPokemon es un RPG de combates tácticos desarrollado íntegramente en C, diseñ
 
 ## 📜 Historial de Versiones
 
-### 🚀 Versión 1.0.1 (Actual) - "La Gran Expansión"
+### 🚀 Versión 1.0.2 (Actual) - "El Desafío de la Torre"
+Esta actualización se centra en añadir contenido de juego desafiante y pulir la presentación visual.
+- **Modo Torre**: Nuevo modo de juego tipo "gauntlet" con 5 niveles de dificultad creciente y recompensas en gemas al vencer al jefe.
+- **IA Dinámica**: Los entrenadores de la torre poseen movimientos aleatorios de todo el registro, aumentando la variedad táctica.
+- **Pulido Visual**: Centrado matemático de la pantalla de introducción (Logo ASCII y textos de bienvenida).
+- **Estabilidad**: Resolución de errores de compilación y optimización de dependencias internas.
+
+### 🚀 Versión 1.0.1 - "La Gran Expansión"
 Esta versión marca el inicio de **ZPokemon** como entidad propia, mejorando la jugabilidad y la organización del proyecto.
 - **Identidad**: Renombramiento oficial del proyecto a ZPokemon.
 - **Cinemática**: Nueva introducción con arte ASCII y efectos de texto.
@@ -41,3 +48,7 @@ Próximas funcionalidades a implementar:
 - **Más Pokémon**: Expansión de la Pokédex a los 151 originales.
 - **Modo Aventura**: Sistema de mapas básico para exploración y encuentro con entrenadores.
 - **IA Rival Avanzada**: Mejora de la lógica del rival para que use cambios de Pokémon y mejores ataques.
+
+---
+
+Desarrollado con ❤️ por Joaco.

@@ -4,6 +4,7 @@
 #include <windows.h>
 #endif
 #include "Intro.h"
+#include "Menu.h"
 #include "Utils.h"
 
 void MostrarIntro() {
@@ -27,19 +28,18 @@ void MostrarIntro() {
     };
 
     int lineas = sizeof(logo) / sizeof(logo[0]);
+    int offsetX = 2; // (80 - 75) / 2 approx
     
     // Animación de aparición
     for (int i = 0; i < lineas; i++) {
-        MoverCursor(1, 4 + i);
+        MoverCursor(offsetX, 4 + i);
         CambiarColor(11); // Cyan
         if (i >= 5 && i <= 11) CambiarColor(14); // Yellow for the logo
         printf("%s", logo[i]);
         Sleep(50);
     }
 
-    CambiarColor(15);
-    MoverCursor(20, 20);
-    EscribirLento(">>> Presiona cualquier tecla para continuar <<<", 20);
+    ImprimirCentrado(20, ">>> Presiona cualquier tecla para continuar <<<", 15);
     
     // Esperar input (si es posible con Utils.c)
     // En este motor solemos usar GetLastChar o similar
