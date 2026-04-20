@@ -1,14 +1,23 @@
-# Binaries
+# Binarios y compilacion
 bin/
 *.exe
 *.o
+*.a
+*.pdb
 
-# Save files
-*.zpk
-*.dat
+# Scripts de compilacion locales
+compilar.bat
 
-# IDE
+# Dependencias (si se bajan localmente)
+lib/raylib.a
+lib/raylib.lib
+
+# VS Code y editores
 .vscode/
+.idea/
+*.swp
+*.bak
 
-# Build
-Makefile
+# Otros
+backup/
+mingw64/

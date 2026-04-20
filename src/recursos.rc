@@ -1,0 +1,13 @@
+#include "recursos.h"
+
+ID_BULBASAUR      RCDATA "assets/bulbasaur.png"
+ID_CHARMANDER     RCDATA "assets/charmander.png"
+ID_SQUIRTLE       RCDATA "assets/squirtle.png"
+ID_PIKACHU        RCDATA "assets/pikachu.png"
+ID_EEVEE          RCDATA "assets/eevee.png"
+ID_MEW            RCDATA "assets/mew.png"
+ID_BATTLE_BG      RCDATA "assets/battle_bg.png"
+ID_MENU_BG        RCDATA "assets/menu_bg.png"
+ID_INTRO_BG       RCDATA "assets/intro_bg.png"
+ID_START_BG       RCDATA "assets/start_bg.png"
+ID_LOADING_BG     RCDATA "assets/loading_bg.png"

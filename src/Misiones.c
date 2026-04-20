@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-#include <windows.h>
 #include "Misiones.h"
 #include "Utils.h"
-#include "Mouse.h"
 #include "Menu.h"
+#include "raylib.h"
+#include "raygui.h"
+#include "Assets.h"
 
 static Mision misiones[10];
 static int m_init = 0;
@@ -61,7 +62,6 @@ void InicializarMisiones() {
 int EsMisionCumplida(int idx, Jugador* j) {
     if (idx < 0 || idx >= 10) return 0;
     
-    // Check max level in team
     int maxLvlEquipo = 0;
     for(int i=0; i<j->cantidadPokemons; i++) if(j->pokemons[i].nivel > maxLvlEquipo) maxLvlEquipo = j->pokemons[i].nivel;
 
@@ -71,7 +71,7 @@ int EsMisionCumplida(int idx, Jugador* j) {
         case 2: return maxLvlEquipo >= 10;
         case 3: return j->stats.vitoriaTipoFuego == 1;
         case 4: return j->cantidadPokemons >= 3;
-        case 5: return j->stats.victoriaAguaSoloAgua == 1; // Aun no implementado full detection pero el flag existe
+        case 5: return j->stats.victoriaAguaSoloAgua == 1;
         case 6: return j->stats.combatesSeguidos >= 5;
         case 7: return j->stats.maxNivelVencido >= 50;
         case 8: return maxLvlEquipo >= 100;
@@ -83,50 +83,63 @@ int EsMisionCumplida(int idx, Jugador* j) {
 void MostrarMenuMisiones(Jugador* j) {
     InicializarMisiones();
     BorrarPantallaCompleta();
-    int cx = GetCentroX();
-
-    while(1) {
-        MoverCursor(0, 0);
-        DibujarCajaUTF8(cx - 39, 1, 78, 23, 11);
-        ImprimirCentrado(3, "=== PANEL DE MISIONES ===", 11);
-
+    
+    while(!WindowShouldClose()) {
+        ActualizarInputLock(GetFrameTime());
+        bool locked = IsInputLocked();
+        
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawBackgroundExt(texMenuBG, 0.2f);
+        
+        float panelW = SW() * 0.85f; float panelH = SH() * 0.85f;
+        Rectangle panelRec = { CX() - panelW/2, CY() - panelH/2, panelW, panelH };
+        DrawRectangleRounded(panelRec, 0.05f, 10, Fade(BLACK, 0.8f));
+        DrawRectangleRoundedLines(panelRec, 0.05f, 10, 3, SKYBLUE);
+        
+        DrawText("PANEL DE MISIONES", (int)(CX() - MeasureText("PANEL DE MISIONES", 30)/2), (int)(panelRec.y + 20), 30, YELLOW);
+        
+        float itemH = (panelH - 120) / 10.0f;
+        float startY = panelRec.y + 70;
+        
         for (int i = 0; i < 10; i++) {
-            MoverCursor(cx - 37, 5 + i);
-            int color = (misiones[i].dificultad == FACIL ? 10 : (misiones[i].dificultad == MEDIO ? 14 : 12));
+            float y = startY + i * (itemH + 4);
+            Rectangle itemRec = { panelRec.x + 20, y, panelW - 40, itemH };
             
-            CambiarColor(color);
-            printf("[%s] ", (misiones[i].dificultad == FACIL ? "FAC" : (misiones[i].dificultad == MEDIO ? "MED" : "DIF")));
+            Color diffC = (misiones[i].dificultad == FACIL) ? GREEN : (misiones[i].dificultad == MEDIO) ? ORANGE : RED;
+            DrawRectangleRounded(itemRec, 0.2f, 8, Fade(DARKGRAY, 0.4f));
+            DrawRectangleRoundedLines(itemRec, 0.2f, 8, 1.5f, Fade(diffC, 0.6f));
             
-            if (misiones[i].completada) CambiarColor(8); else CambiarColor(15);
-            printf("%-15s ", misiones[i].nombre);
+            // Dificultad tag
+            const char* diffStr = (misiones[i].dificultad == FACIL) ? "FACIL" : (misiones[i].dificultad == MEDIO) ? "MEDIO" : "DIFICIL";
+            DrawText(diffStr, (int)(itemRec.x + 10), (int)(y + itemH/2 - 8), 16, diffC);
             
-            CambiarColor(7);
-            printf("║ %-35s ", misiones[i].descripcion);
+            // Nombre y Descripcion
+            DrawText(misiones[i].nombre, (int)(itemRec.x + 85), (int)(y + itemH/2 - 10), 19, WHITE);
+            DrawText(misiones[i].descripcion, (int)(itemRec.x + 280), (int)(y + itemH/2 - 8), 16, LIGHTGRAY);
             
+            // Estado / Recompensa
             if (misiones[i].completada) {
-                CambiarColor(10); printf(" [ COMPLETA ] ");
+                DrawText("COMPLETA", (int)(itemRec.x + panelW - 150), (int)(y + itemH/2 - 8), 18, GRAY);
             } else if (EsMisionCumplida(i, j)) {
-                CambiarColor(11); printf(" [ RECLAMAR ] ");
+                Rectangle btnRec = { itemRec.x + panelW - 160, y + 5, 110, itemH - 10 };
+                if (GuiButton(btnRec, "RECLAMAR") && !locked) {
+                    misiones[i].completada = 1;
+                    j->monedas += misiones[i].recompensa;
+                    BloquearInput(0.3f);
+                }
             } else {
-                CambiarColor(14); printf("  $%d  ", misiones[i].recompensa);
+                DrawText(TextFormat("$ %d", misiones[i].recompensa), (int)(itemRec.x + panelW - 140), (int)(y + itemH/2 - 8), 18, GOLD);
             }
         }
-
-        ImprimirCentrado(19, "Haz misiones para ganar dinero y ser el mejor.", 15);
-        ImprimirCentrado(22, "[ VOLVER AL MENÚ ]", 14);
-
-        MouseState m = obtenerMouseState();
-        if (mouseEnRango(cx - 10, 22, cx + 10, 22, m)) return;
-
-        // Lógica de Reclamo (Detectar clic en la zona derecha)
-        for(int i=0; i<10; i++) {
-            if (mouseEnRango(cx + 25, 5+i, cx+40, 5+i, m) && !misiones[i].completada && EsMisionCumplida(i, j)) {
-                misiones[i].completada = 1;
-                j->monedas += misiones[i].recompensa;
-                ImprimirCentrado(21, "¡RECOMPENSA RECLAMADA CON ÉXITO!", 10);
-                Sleep(800);
-            }
+        
+        if (GuiButton((Rectangle){ CX() - 100, panelRec.y + panelH - 45, 200, 35 }, "VOLVER") && !locked) {
+            BloquearInput(0.4f);
+            EndDrawing();
+            break;
         }
-        Sleep(60);
+        
+        EndDrawing();
+        if (IsKeyPressed(KEY_ESCAPE)) break;
     }
 }

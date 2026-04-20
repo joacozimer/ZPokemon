@@ -3,21 +3,19 @@
 #include <string.h>
 #include <time.h>
 #include "Torre.h"
-#include "Mouse.h"
 #include "Batalla.h"
 #include "Registro.h"
 #include "Utils.h"
 #include "Menu.h"
+#include "raylib.h"
+#include "raygui.h"
 
 Jugador* GenerarRivalTorre(int nivelTorre) {
     Jugador* rival = (Jugador*)malloc(sizeof(Jugador));
     memset(rival, 0, sizeof(Jugador));
     sprintf(rival->nombre, "Entrenador Torre Lvl %d", nivelTorre);
     
-    int numPkmn = 1;
-    if (nivelTorre >= 3) numPkmn = 2;
-    if (nivelTorre >= 5) numPkmn = 3;
-    
+    int numPkmn = (nivelTorre >= 5) ? 3 : (nivelTorre >= 3 ? 2 : 1);
     int lvlPkmn = nivelTorre * 5;
     
     for (int i = 0; i < numPkmn; i++) {
@@ -26,77 +24,62 @@ Jugador* GenerarRivalTorre(int nivelTorre) {
         p.nivel = lvlPkmn;
         CalcularStats(&p);
         
-        // Asignar movimientos aleatorios (incluyendo los nuevos)
         int totalMovs = GetTotalMovimientos();
         for (int m = 0; m < 4; m++) {
             p.movimientos[m] = GetMovimientoPorIndice(rand() % totalMovs);
         }
-        
+        p.vida = p.vidaMax;
         rival->pokemons[rival->cantidadPokemons++] = p;
     }
-    
     return rival;
 }
 
 void IniciarTorre(Jugador* j) {
     srand(time(NULL));
-    int cx = 40; // GetCentroX() hardcoded or include Menu.h
     
     for (int lvl = 1; lvl <= 5; lvl++) {
-        BorrarPantallaCompleta();
-        ImprimirCentrado(5, "--- MODO TORRE DE DESAFIO ---", 14);
-        char b[100];
-        sprintf(b, "Nivel Actual: %d / 5", lvl);
-        ImprimirCentrado(7, b, 11);
-        
-        if (lvl == 5) ImprimirCentrado(9, "¡¡ NIVEL DE JEFE !!", 12);
-        
-        ImprimirCentrado(12, "[ COMENZAR BATALLA ]", 10);
-        ImprimirCentrado(14, "[ ABANDONAR TORRE  ]", 12);
-        
-        while (1) {
-            MouseState mouse = obtenerMouseState();
-            if (mouseEnRango(cx - 10, 12, cx + 10, 12, mouse)) {
+        while (!WindowShouldClose()) {
+            ActualizarInputLock(GetFrameTime());
+            bool locked = IsInputLocked();
+
+            BeginDrawing();
+            ClearBackground(BLACK);
+            DrawText("--- MODO TORRE DE DESAFIO ---", 400 - MeasureText("--- MODO TORRE DE DESAFIO ---", 30)/2, 100, 30, YELLOW);
+            DrawText(TextFormat("Nivel Actual: %d / 5", lvl), 400 - MeasureText(TextFormat("Nivel Actual: %d / 5", lvl), 20)/2, 180, 20, WHITE);
+            
+            if (lvl == 5) DrawText("¡¡ NIVEL DE JEFE !!", 400 - MeasureText("¡¡ NIVEL DE JEFE !!", 25)/2, 220, 25, RED);
+            
+            if (GuiButton((Rectangle){ 300, 300, 200, 50 }, "COMENZAR BATALLA") && !locked) {
+                BloquearInput(0.8f);
                 Jugador* rival = GenerarRivalTorre(lvl);
                 IniciarBatalla(j, rival);
                 
-                // Comprobar si el jugador ganó
-                int ganaste = 0;
-                for(int pk=0; pk<j->cantidadPokemons; pk++) if(j->pokemons[pk].vida > 0) ganaste = 1;
-                
+                int ganaste = HayPokemonsVivos(j);
                 if (ganaste) {
-                    // Recompensas
                     if (lvl < 5) {
                         int premio = lvl * 500;
                         j->monedas += premio;
-                        BorrarPantallaCompleta();
-                        sprintf(b, "¡Nivel %d Superado! Ganaste $%d monedas.", lvl, premio);
-                        ImprimirCentrado(10, b, 10);
-                        Sleep(1500);
+                        WaitMs(1500);
                     } else {
                         j->gemas += 5;
-                        BorrarPantallaCompleta();
-                        ImprimirCentrado(10, "¡TORRE COMPLETADA!", 14);
-                        ImprimirCentrado(11, "Ganaste 5 Gemas de Jefe.", 13);
-                        Sleep(2000);
+                        WaitMs(2000);
                         free(rival);
-                        return; // Fin de torre
+                        return;
                     }
                 } else {
-                    BorrarPantallaCompleta();
-                    ImprimirCentrado(10, "Fuiste derrotado en la Torre...", 12);
-                    Sleep(2000);
+                    WaitMs(2000);
                     free(rival);
                     return;
                 }
                 free(rival);
                 break;
             }
-            if (mouseEnRango(cx - 10, 14, cx + 10, 14, mouse)) {
+            if (GuiButton((Rectangle){ 300, 380, 200, 50 }, "ABANDONAR") && !locked) {
+                BloquearInput(0.8f);
                 return;
             }
-            ProcesarMensajes();
-            Sleep(50);
+            
+            EndDrawing();
         }
     }
 }

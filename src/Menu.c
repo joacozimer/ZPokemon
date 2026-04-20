@@ -1,451 +1,235 @@
-#ifdef _WIN32
-#include <windows.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "Menu.h"
-#include "Mouse.h"
-#include "Pokemon.h"
-#include "Guardado.h"
-#include "Batalla.h"
+#include "raylib.h"
+#include "raygui.h"
+#include "Assets.h"
 #include "Utils.h"
-#include "Misiones.h"
-#include "Registro.h"
+#include "Batalla.h"
 #include "Torre.h"
+#include "Guardado.h"
+#include "Misiones.h"
 
-#define COLOR_DEFAULT 7
-#define COLOR_TITULO 11 
-#define COLOR_BOTON 10  
-#define COLOR_SALIR 12  
-#define COLOR_TEXTO 15  
-#define COLOR_ORO 14
+// ─── MostrarMenuPrincipal ───────────────────────────────────────────────────
+bool MostrarMenuPrincipal(Jugador* jugador) {
+    EsperarSoltarMouse();
 
-int GetCentroX() {
-    return 40; // Midpoint of our 80-column virtual terminal
-}
+    while (!WindowShouldClose()) {
+        float btnW = SW() * 0.22f; // Reducido para mayor elegancia
+        float btnH = SH() * 0.055f; // Reducido para evitar que sea muy pesado
+        float bx   = CX() - btnW / 2.0f;
+        float gap  = btnH + SH() * 0.012f;
+        float startY = SH() * 0.28f;
 
-int CalcularAnchoDisplay(const char* texto) {
-    int ancho = 0;
-    while (*texto) {
-        if ((*texto & 0xc0) != 0x80) ancho++;
-        texto++;
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        // Fondo
+        DrawBackgroundExt(texMenuBG, 1.0f);
+
+        // Panel opaco central más estilizado
+        float panelW = btnW + 60;
+        float panelH = gap * 9 + 40; // Ajustado para un botón más (Log)
+        float panelX = CX() - panelW / 2.0f;
+        float panelY = startY - 20;
+        DrawRectangleRounded((Rectangle){panelX, panelY, panelW, panelH}, 0.1f, 10, (Color){10,10,25,200});
+        DrawRectangleRoundedLines((Rectangle){panelX, panelY, panelW, panelH}, 0.1f, 10, 2, (Color){255,215,0,100});
+
+        // Título con más sombra y elegancia
+        float titleSz = SH() * 0.1f;
+        if (titleSz < 34) titleSz = 34;
+        int tsz = (int)titleSz;
+        DrawText("Z-POKEMON", (int)(CX() - MeasureText("Z-POKEMON", tsz)/2.0f + 2), (int)(startY - tsz - 28 + 2), tsz, DARKGRAY);
+        DrawText("Z-POKEMON", (int)(CX() - MeasureText("Z-POKEMON", tsz)/2.0f), (int)(startY - tsz - 28), tsz, GOLD);
+        DrawText("v1.0.3-DEBUG", (int)(CX() + MeasureText("Z-POKEMON", tsz)/2.0f - 80), (int)(startY - 25), 14, GRAY);
+
+        // Info jugador refinada
+        DrawText(TextFormat("Entrenador: %s", jugador->nombre), (int)(panelX + 15), (int)(panelY + 10), 16, WHITE);
+        DrawText(TextFormat("$ %ld", jugador->monedas), (int)(panelX + panelW - 100), (int)(panelY + 10), 16, GOLD);
+
+        bool done = false;
+        ActualizarInputLock(GetFrameTime());
+        bool locked = IsInputLocked();
+
+        // BOTONES (con Input Lock)
+        float y = startY + 30;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "POKEDEX") && !locked)           { BloquearInput(0.8f); MostrarPokedex(); }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "INICIAR COMBATE") && !locked)   { BloquearInput(0.8f); ConfigurarRivalMenu(jugador); }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "MODO TORRE") && !locked)        { BloquearInput(0.8f); IniciarTorre(jugador); }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "MISIONES") && !locked)          { BloquearInput(0.8f); MostrarMenuMisiones(jugador); }
+        y += gap + SH()*0.01f; // separador visual
+
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "MI EQUIPO") && !locked)         { BloquearInput(0.8f); VerPokemons(jugador); }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "TIENDA") && !locked)            { BloquearInput(0.8f); MostrarTienda(jugador); }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "GUARDAR PARTIDA") && !locked)   { BloquearInput(0.8f); GuardarPartida(jugador); }
+        y += gap + SH()*0.01f;
+
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "SALIR") && !locked)             { done = true; BloquearInput(0.8f); }
+
+        EndDrawing();
+        if (done) return false;
     }
-    return ancho;
+    return true;
 }
 
-// BorrarPantallaCompleta ahora está en Utils.c
-
-void ImprimirCentrado(int y, const char* texto, int color) {
-    int ancho = CalcularAnchoDisplay(texto);
-    int x = GetCentroX() - (ancho / 2);
-    MoverCursor(x, y);
-    CambiarColor(color);
-    printf("%s", texto);
-    CambiarColor(COLOR_DEFAULT);
-}
-
-void DibujarBotonCentrado(int y, const char* texto, int color) {
-    char buffer[255];
-    sprintf(buffer, "[ %-10s ]", texto);
-    ImprimirCentrado(y, buffer, color);
-}
-
-void MostrarMenuPrincipal(Jugador* jugador) {
-    BorrarPantallaCompleta();
-    int cx = GetCentroX();
-    while (1) {
-        MoverCursor(0, 0);
-        DibujarCajaUTF8(cx - 40, 1, 80, 22, 11);
-        
-        ImprimirCentrado(3, "◈  ZPOKEMON  ◈", 11);
-        ImprimirCentrado(4, "────────────────────────────────────────────────────────", 8);
-        
-        char buffer[255];
-        sprintf(buffer, "ENTRENADOR: %-12s ║ NIVEL: %d", jugador->nombre, jugador->nivel);
-        ImprimirCentrado(6, buffer, 15);
-        
-        MoverCursor(cx - 30, 8); CambiarColor(14); printf("MONEDAS: %-8ld", jugador->monedas);
-        MoverCursor(cx + 5, 8); CambiarColor(13); printf("GEMAS: %-5d", jugador->gemas);
-        
-        ImprimirCentrado(10, "-------------------- MENU --------------------", 8);
-
-        int bXLeft = cx - 25;
-        int bXRight = cx + 5;
-        
-        MoverCursor(bXLeft, 12); CambiarColor(10); printf("[ INICIAR COMBATE ]");
-        MoverCursor(bXRight, 12); CambiarColor(11); printf("[ MIS POKEMONS    ]");
-        
-        MoverCursor(bXLeft, 14); CambiarColor(14); printf("[ TIENDA POKEMON  ]");
-        MoverCursor(bXRight, 14); CambiarColor(13); printf("[ MODO TORRE      ]");
-        
-        MoverCursor(bXLeft, 16); CambiarColor(13); printf("[ POKEDEX         ]");
-        MoverCursor(bXRight, 16); CambiarColor(12); printf("[ GUARDAR Y SALIR ]");
-        MoverCursor(cx - 10, 18); CambiarColor(8);  printf("[ CONFIGURACION   ]");
-
-        MouseState mouse = obtenerMouseState();
-        
-        if (mouseEnRango(bXLeft, 12, bXLeft + 19, 12, mouse)) {
-            ConfigurarRivalMenu(jugador);
-            BorrarPantallaCompleta();
-        } else if (mouseEnRango(bXRight, 12, bXRight + 19, 12, mouse)) {
-            VerPokemons(jugador);
-            BorrarPantallaCompleta();
-        } else if (mouseEnRango(bXLeft, 14, bXLeft + 19, 14, mouse)) {
-            MostrarTienda(jugador);
-            BorrarPantallaCompleta();
-        } else if (mouseEnRango(bXRight, 14, bXRight + 19, 14, mouse)) {
-            IniciarTorre(jugador);
-            BorrarPantallaCompleta();
-        } else if (mouseEnRango(bXLeft, 16, bXLeft + 19, 16, mouse)) {
-            MostrarPokedex();
-            BorrarPantallaCompleta();
-        } else if (mouseEnRango(bXRight, 16, bXRight + 19, 16, mouse)) {
-            GuardarPartida(jugador);
-            ImprimirCentrado(22, "¡PROGRESO GUARDADO CON ÉXITO!", 10);
-            Sleep(800);
-            BorrarPantallaCompleta();
-            printf("Saliendo del juego... ¡Hasta la próxima, Entrenador!\n");
-            exit(0);
-        } else if (mouseEnRango(cx - 10, 18, cx + 10, 18, mouse)) {
-            MostrarConfiguracion(jugador);
-            BorrarPantallaCompleta();
-        }
-        Sleep(50);
-    }
-}
-
-Pokemon ElegirStarterMouse() {
-    BorrarPantallaCompleta();
-    while (1) {
-        ImprimirCentrado(2, "=== ELIGE TU POKEMON INICIAL ===", COLOR_TITULO);
-        
-        int cx = GetCentroX();
-        
-        // BULBASAUR BOX (Izquierda)
-        DibujarCajaUTF8(cx - 38, 6, 22, 6, 10);
-        MoverCursor(cx - 32, 8); CambiarColor(15); printf("BULBASAUR");
-        MoverCursor(cx - 36, 9); ImprimirTipoBadge(PLANTA); printf(" "); ImprimirTipoBadge(VENENO);
-
-        // CHARMANDER BOX (Centro)
-        DibujarCajaUTF8(cx - 11, 6, 22, 6, 12);
-        MoverCursor(cx - 5, 8); CambiarColor(15); printf("CHARMANDER");
-        MoverCursor(cx - 4, 9); ImprimirTipoBadge(FUEGO);
-
-        // SQUIRTLE BOX (Derecha)
-        DibujarCajaUTF8(cx + 15, 6, 22, 6, 9);
-        MoverCursor(cx + 22, 8); CambiarColor(15); printf("SQUIRTLE");
-        MoverCursor(cx + 23, 9); ImprimirTipoBadge(AGUA);
-
-        MouseState mouse = obtenerMouseState();
-        if (mouseEnRango(cx - 38, 6, cx - 16, 12, mouse)) return crearBulbasaur();
-        if (mouseEnRango(cx - 11, 6, cx + 11, 12, mouse)) return crearCharmander();
-        if (mouseEnRango(cx + 15, 6, cx + 37, 12, mouse)) return crearSquirtle();
-
-        Sleep(50);
-    }
-}
-
-void CompactarEquipo(Jugador* j) {
-    Pokemon nuevoEquipo[6];
-    memset(nuevoEquipo, 0, sizeof(nuevoEquipo));
-    int count = 0;
-    for(int i=0; i<6; i++) {
-        if(j->pokemons[i].nombre[0] != '\0') {
-            nuevoEquipo[count++] = j->pokemons[i];
-        }
-    }
-    memcpy(j->pokemons, nuevoEquipo, sizeof(nuevoEquipo));
-    j->cantidadPokemons = count;
-}
-
-void VerPokemons(Jugador* jugador) {
-    BorrarPantallaCompleta();
-    int cx = GetCentroX();
-    int selIdx = -1; 
-    
-    while(1) {
-        MoverCursor(0, 0);
-        ImprimirCentrado(1, "=== GESTION DE POKEMONS ===", COLOR_TITULO);
-        ImprimirCentrado(2, "(Haz clic en dos para intercambiarlos)", 8);
-
-        MoverCursor(cx - 39, 4); CambiarColor(11); printf("MI EQUIPO");
-        for (int i = 0; i < 6; i++) {
-            MoverCursor(cx - 39, 6 + i);
-            if (selIdx == i) CambiarColor(14);
-            else if (i < jugador->cantidadPokemons) CambiarColor(10);
-            else CambiarColor(8);
-
-            if (i < jugador->cantidadPokemons && jugador->pokemons[i].nombre[0] != '\0') {
-                printf("%d. %-10s ", i+1, jugador->pokemons[i].nombre);
-            } else {
-                printf("%d. [ VACIO ] ", i+1);
-            }
-        }
-
-        // PC COLUMNA 1
-        MoverCursor(cx - 13, 4); CambiarColor(11); printf("PC (1-15)");
-        for (int i = 0; i < 15; i++) {
-            MoverCursor(cx - 13, 6 + i);
-            int idx = i + 6;
-            if (selIdx == idx) CambiarColor(14);
-            else if (i < jugador->cantidadPC) CambiarColor(7);
-            else CambiarColor(8);
-            if(i < jugador->cantidadPC && jugador->pc[i].nombre[0] != '\0') {
-                printf("%2d. %-8s ", i+1, jugador->pc[i].nombre);
-            } else printf("%2d. ---     ", i+1);
-        }
-
-        // PC COLUMNA 2
-        MoverCursor(cx + 17, 4); CambiarColor(11); printf("PC (16-30)");
-        for (int i = 0; i < 15; i++) {
-            MoverCursor(cx + 17, 6 + i);
-            int idx = i + 15 + 6;
-            if (selIdx == idx) CambiarColor(14);
-            else if ((i+15) < jugador->cantidadPC) CambiarColor(7);
-            else CambiarColor(8);
-            if((i+15) < jugador->cantidadPC && jugador->pc[i+15].nombre[0] != '\0') {
-                printf("%2d. %-8s ", i+16, jugador->pc[i+15].nombre);
-            } else printf("%2d. ---     ", i+16);
-        }
-
-        ImprimirCentrado(23, "[ VOLVER ]", 12);
-        
-        MouseState m = obtenerMouseState();
-        if (mouseEnRango(cx - 5, 23, cx + 5, 23, m)) break;
-
-        // LOGICA DE INTERCAMBIO
-        for(int i=0; i<6; i++) {
-            if(mouseEnRango(cx-39, 6+i, cx-20, 6+i, m)) {
-                if(selIdx == -1) selIdx = i;
-                // ... (rest of logic)
-                if(selIdx == -1) selIdx = i;
-                else {
-                    if(selIdx != i) {
-                        if(selIdx < 6) { 
-                            Pokemon temp = jugador->pokemons[i];
-                            jugador->pokemons[i] = jugador->pokemons[selIdx];
-                            jugador->pokemons[selIdx] = temp;
-                        } else { 
-                            int pcIdx = selIdx - 6;
-                            if (pcIdx < jugador->cantidadPC) {
-                                if (jugador->cantidadPokemons == 1 && jugador->pc[pcIdx].nombre[0] == '\0' && i == 0) {
-                                     ImprimirCentrado(24, "¡ERROR: No puedes vaciar el equipo!", 12);
-                                     Sleep(800); MoverCursor(0,24); printf("                                     ");
-                                } else {
-                                    Pokemon temp = jugador->pokemons[i];
-                                    jugador->pokemons[i] = jugador->pc[pcIdx];
-                                    jugador->pc[pcIdx] = temp;
-                                }
-                            }
-                        }
-                    }
-                    CompactarEquipo(jugador);
-                    selIdx = -1;
-                    Sleep(200);
-                }
-            }
-        }
-        for(int i=0; i<30; i++) {
-            int col = (i < 15) ? -15 : 25;
-            int row = (i < 15) ? i : i - 15;
-            if(mouseEnRango(cx+col, 6+row, cx+col+15, 6+row, m)) {
-                if(selIdx == -1) selIdx = i + 6;
-                else {
-                    if(selIdx != (i + 6)) {
-                        if(selIdx >= 6) { 
-                             int idx1 = selIdx - 6;
-                             int idx2 = i;
-                             if(idx1 < jugador->cantidadPC && idx2 < jugador->cantidadPC) {
-                                 Pokemon temp = jugador->pc[idx1];
-                                 jugador->pc[idx1] = jugador->pc[idx2];
-                                 jugador->pc[idx2] = temp;
-                             }
-                        } else { 
-                            int eqIdx = selIdx;
-                            int pcIdx = i;
-                            if (eqIdx < jugador->cantidadPokemons) {
-                                if (jugador->cantidadPokemons == 1 && jugador->pc[pcIdx].nombre[0] == '\0') {
-                                    ImprimirCentrado(24, "¡ERROR: No puedes vaciar el equipo!", 12);
-                                    Sleep(800); MoverCursor(0,24); printf("                                     ");
-                                } else {
-                                    Pokemon temp = jugador->pc[pcIdx];
-                                    jugador->pc[pcIdx] = jugador->pokemons[eqIdx];
-                                    jugador->pokemons[eqIdx] = temp;
-                                }
-                            }
-                        }
-                    }
-                    CompactarEquipo(jugador);
-                    // Actualizar cantidadPC
-                    int cPC = 0;
-                    for(int k=0; k<30; k++) if(jugador->pc[k].nombre[0] != '\0') cPC = k+1;
-                    jugador->cantidadPC = (cPC > jugador->cantidadPC) ? cPC : jugador->cantidadPC; // Mantener slots si se desea
-                    
-                    selIdx = -1;
-                    Sleep(200);
-                }
-            }
-        }
-        Sleep(50);
-    }
-}
-
-void MostrarTienda(Jugador* j) {
-    BorrarPantallaCompleta();
-    while (1) {
-        MoverCursor(0, 0);
-        ImprimirCentrado(2, "=== TIENDA POKEMON ===", 14);
-        MoverCursor(2, 4); CambiarColor(14); printf("Monedas: %-10ld", j->monedas);
-        MoverCursor(2, 5); CambiarColor(13); printf("Gemas: %-5d", j->gemas);
-
-        DibujarBotonCentrado(10, "POKEMON SALVAJE (1000)", 14);
-        DibujarBotonCentrado(15, "VOLVER", 12);
-
-        MouseState m = obtenerMouseState();
-        int cx = GetCentroX() - 8;
-        if (mouseEnRango(cx, 10, cx + 15, 10, m)) {
-            if (j->monedas >= 1000) {
-                j->monedas -= 1000;
-                Pokemon p;
-                int r = rand() % 3;
-                if(r == 0) p = crearBulbasaur(); else if(r == 1) p = crearCharmander(); else p = crearSquirtle();
-                InicializarStarters(&p);
-                char res[100]; sprintf(res, "¡Ha salido un %s salvaje!", p.nombre);
-                ImprimirCentrado(17, res, 10);
-                
-                if (j->cantidadPokemons < 6) {
-                    j->pokemons[j->cantidadPokemons++] = p;
-                    ImprimirCentrado(18, "¡Se ha unido a tu EQUIPO!", 10);
-                } else if (j->cantidadPC < 30) {
-                    j->pc[j->cantidadPC++] = p;
-                    ImprimirCentrado(18, "¡Enviado directamente al PC!", 11);
-                }
-                Sleep(1500);
-            } else { ImprimirCentrado(17, "No tienes monedas", 12); Sleep(800); }
-        } else if (mouseEnRango(cx, 15, cx + 15, 15, m)) {
-            return;
-        }
-        Sleep(50);
-    }
-}
-
-void MostrarConfiguracion(Jugador* jugador) {
-    BorrarPantallaCompleta();
-    int cx = GetCentroX();
-    while (1) {
-        MoverCursor(0, 0);
-        ImprimirCentrado(2, "=== CONFIGURACION ===", 11);
-        
-        DibujarBotonCentrado(10, "BORRAR PARTIDA", 12);
-        DibujarBotonCentrado(15, "VOLVER", 10);
-        
-        MouseState m = obtenerMouseState();
-        int btnX = cx - 8;
-        
-        if (mouseEnRango(btnX, 10, btnX + 15, 10, m)) {
-            BorrarPantallaCompleta();
-            while (1) {
-                MoverCursor(0, 0);
-                ImprimirCentrado(10, "¿ESTÁS SEGURO DE QUE QUIERES BORRAR TU PARTIDA?", 12);
-                ImprimirCentrado(12, "[ SÍ, BORRAR ]    [ NO, VOLVER ]", 15);
-                
-                MouseState m2 = obtenerMouseState();
-                if (mouseEnRango(cx - 16, 12, cx - 2, 12, m2)) {
-                    BorrarPartida();
-                    printf("Partida borrada. Cerrando...\n");
-                    exit(0);
-                }
-                if (mouseEnRango(cx + 2, 12, cx + 16, 12, m2)) break;
-                Sleep(50);
-                ProcesarMensajes();
-            }
-            BorrarPantallaCompleta();
-        } else if (mouseEnRango(btnX, 15, btnX + 15, 15, m)) {
-            return;
-        }
-        
-        ProcesarMensajes();
-        Sleep(50);
-    }
-}
-
+// ─── MostrarPokedex ─────────────────────────────────────────────────────────
 void MostrarPokedex() {
-    int cx = GetCentroX();
-    while (1) {
-        BorrarPantallaCompleta();
-        ImprimirCentrado(2, "=== Z-POKEDEX ===", 11);
-        
-        DibujarBotonCentrado(8, "POKEMONS", 10);
-        DibujarBotonCentrado(10, "MOVIMIENTOS", 11);
-        DibujarBotonCentrado(12, "OBJETOS", 14);
-        DibujarBotonCentrado(15, "VOLVER", 12);
-        
-        MouseState m = obtenerMouseState();
-        int btnX = cx - 8;
-        
-        if (mouseEnRango(btnX, 8, btnX + 15, 8, m)) {
-            // LISTA POKEMONS
-            BorrarPantallaCompleta();
-            while(1) {
-                ImprimirCentrado(1, "--- POKEMONS ---", 10);
-                for(int i=0; i<GetTotalPokemons(); i++) {
-                    Pokemon p = GetPokemonPorIndice(i);
-                    MoverCursor(cx - 20, 4 + i);
-                    CambiarColor(15); printf("%d. %-12s ", i+1, p.nombre);
-                    ImprimirTipoBadge(p.tipo[0]);
-                }
-                ImprimirCentrado(20, "[ VOLVER ]", 12);
-                MouseState m2 = obtenerMouseState();
-                if (mouseEnRango(cx-5, 20, cx+5, 20, m2)) break;
-                Sleep(50); ProcesarMensajes();
-            }
-        } else if (mouseEnRango(btnX, 10, btnX + 15, 10, m)) {
-            // LISTA MOVIMIENTOS
-            BorrarPantallaCompleta();
-            int offset = 0;
-            while(1) {
-                BorrarPantallaCompleta();
-                ImprimirCentrado(1, "--- MOVIMIENTOS ---", 11);
-                for(int i=offset; i<offset+15 && i<GetTotalMovimientos(); i++) {
-                    Movimiento mov = GetMovimientoPorIndice(i);
-                    MoverCursor(5, 3 + (i-offset));
-                    CambiarColor(14); printf("%-15s", mov.nombre);
-                    CambiarColor(7); printf(" | Pot: %3d | Acc: %3d | PP: %2d", mov.potencia, mov.precision, mov.ppMax);
-                }
-                ImprimirCentrado(20, "[ VOLVER ]", 12);
-                if (offset > 0) MoverCursor(5, 19), printf("^ ANTERIOR");
-                if (offset + 15 < GetTotalMovimientos()) MoverCursor(65, 19), printf("v SIGUIENTE");
+    EsperarSoltarMouse();
+    int categoria = 0;
+    const char* nombres[] = { "Bulbasaur", "Charmander", "Squirtle" };
 
-                MouseState m2 = obtenerMouseState();
-                if (mouseEnRango(cx-5, 20, cx+5, 20, m2)) break;
-                if (mouseEnRango(5, 19, 15, 19, m2) && offset > 0) { offset -= 15; Sleep(200); }
-                if (mouseEnRango(65, 19, 75, 19, m2) && offset + 15 < GetTotalMovimientos()) { offset += 15; Sleep(200); }
-                Sleep(50); ProcesarMensajes();
+    bool done = false;
+    while (!WindowShouldClose() && !done) {
+        ActualizarInputLock(GetFrameTime());
+        bool locked = IsInputLocked();
+        BeginDrawing();
+        ClearBackground((Color){12,12,40,255});
+        DrawBackgroundExt(texMenuBG, 0.2f);
+
+        DrawText("Z-POKEDEX", (int)(CX() - MeasureText("Z-POKEDEX", 34)/2), 20, 34, YELLOW);
+
+        float tabW = SW() * 0.22f;
+        if (GuiButton((Rectangle){ CX()-tabW*1.5f, SH()*0.12f, tabW, 38 }, "POKEMONS") && !locked)   { BloquearInput(0.3f); categoria = 0; }
+        if (GuiButton((Rectangle){ CX()-tabW*0.5f, SH()*0.12f, tabW, 38 }, "MOVIMIENTOS") && !locked) { BloquearInput(0.3f); categoria = 1; }
+        if (GuiButton((Rectangle){ CX()+tabW*0.5f, SH()*0.12f, tabW, 38 }, "OBJETOS") && !locked)    { BloquearInput(0.3f); categoria = 2; }
+
+        DrawRectangle((int)(SW()*0.05f), (int)(SH()*0.22f), (int)(SW()*0.9f), (int)(SH()*0.65f), (Color){0,0,0,160});
+
+        if (categoria == 0) {
+            float cardW = SW() * 0.26f;
+            float cardH = SH() * 0.55f;
+            for (int i = 0; i < 3; i++) {
+                float cx = SW() * 0.14f + i * (cardW + SW()*0.03f);
+                float cy = SH() * 0.23f;
+                DrawRectangleRounded((Rectangle){cx, cy, cardW, cardH}, 0.08f, 8, (Color){20,20,50,200});
+                DrawRectangleRoundedLines((Rectangle){cx, cy, cardW, cardH}, 0.08f, 8, 2, DARKGRAY);
+                DrawPokemonInRect(i, (Rectangle){cx+10, cy+10, cardW-20, cardH-60}, false, WHITE);
+                DrawText(TextFormat("#%03d  %s", i+1, nombres[i]),
+                         (int)(cx + cardW/2 - MeasureText(TextFormat("#%03d  %s", i+1, nombres[i]), 18)/2),
+                         (int)(cy + cardH - 48), 18, WHITE);
             }
-        } else if (mouseEnRango(btnX, 12, btnX + 15, 12, m)) {
-            // LISTA OBJETOS
-            BorrarPantallaCompleta();
-            while(1) {
-                ImprimirCentrado(1, "--- OBJETOS ---", 14);
-                for(int i=0; i<GetTotalObjetos(); i++) {
-                    Objeto o = GetObjetoPorIndice(i);
-                    MoverCursor(5, 4 + i*2);
-                    CambiarColor(14); printf("%-12s: ", o.nombre);
-                    CambiarColor(7); printf("%s", o.descripcion);
-                }
-                ImprimirCentrado(20, "[ VOLVER ]", 12);
-                MouseState m2 = obtenerMouseState();
-                if (mouseEnRango(cx-5, 20, cx+5, 20, m2)) break;
-                Sleep(50); ProcesarMensajes();
-            }
-        } else if (mouseEnRango(btnX, 15, btnX + 15, 15, m)) {
-            return;
+        } else {
+            DrawText("Contenido proximamente...", (int)(CX()-MeasureText("Contenido proximamente...", 20)/2), (int)(SH()*0.5f), 20, GRAY);
         }
-        
-        ProcesarMensajes();
-        Sleep(50);
+
+        if (GuiButton((Rectangle){ CX()-100, SH()*0.92f, 200, 44 }, "VOLVER") && !locked) { done = true; BloquearInput(0.8f); }
+        EndDrawing();
     }
 }
 
+// Redundant local MostrarMisiones implementation removed. Call MostrarMenuMisiones instead.
 
+
+// ─── ElegirStarterMouse ─────────────────────────────────────────────────────
+Pokemon ElegirStarterMouse() {
+    EsperarSoltarMouse();
+    int seleccionado = -1;
+    const char* nombres[] = { "Bulbasaur",  "Charmander", "Squirtle" };
+    const char* tipos[]   = { "Planta",      "Fuego",      "Agua"    };
+    Color colores[]       = { GREEN,         ORANGE,       SKYBLUE   };
+
+    while (!WindowShouldClose()) {
+        ActualizarInputLock(GetFrameTime());
+        bool locked = IsInputLocked();
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawBackgroundExt(texIntroBG, 0.6f);
+
+        int titleSz = (int)(SH() * 0.05f);
+        if (titleSz < 22) titleSz = 22;
+        DrawText("ELIGE TU COMPAÑERO INICIAL", (int)(CX() - MeasureText("ELIGE TU COMPAÑERO INICIAL", titleSz)/2), (int)(SH()*0.05f), titleSz, WHITE);
+
+        float cardW = SW() * 0.24f; float cardH = SH() * 0.62f;
+        float totalW = 3 * cardW + 2 * SW() * 0.03f;
+        float startX = CX() - totalW / 2.0f;
+
+        for (int i = 0; i < 3; i++) {
+            float cx = startX + i * (cardW + SW() * 0.03f);
+            float cy = SH() * 0.16f;
+            Rectangle rec = { cx, cy, cardW, cardH };
+            bool hover = CheckCollisionPointRec(GetMousePosition(), rec);
+            DrawRectangleRounded(rec, 0.1f, 10, (Color){15,15,35,220});
+            if (hover) { DrawRectangleRounded(rec, 0.1f, 10, (Color){colores[i].r, colores[i].g, colores[i].b, 40}); }
+            DrawRectangleRoundedLines(rec, 0.1f, 10, hover ? 3 : 1, hover ? colores[i] : DARKGRAY);
+            DrawPokemonInRect(i, (Rectangle){ cx + cardW*0.05f, cy + 10, cardW*0.9f, cardH*0.7f }, false, WHITE);
+            int nameSize = (int)(SH() * 0.032f); if (nameSize < 16) nameSize = 16;
+            DrawText(nombres[i], (int)(cx + cardW/2 - MeasureText(nombres[i], nameSize)/2), (int)(cy + cardH - nameSize*2 - 18), nameSize, colores[i]);
+            DrawText(TextFormat("Tipo: %s", tipos[i]), (int)(cx + cardW/2 - MeasureText(TextFormat("Tipo: %s", tipos[i]), 14)/2), (int)(cy + cardH - 22), 14, LIGHTGRAY);
+            if (hover && IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && !locked) { seleccionado = i; BloquearInput(0.8f); }
+        }
+        if (seleccionado == 0) { EndDrawing(); return crearBulbasaur(); }
+        if (seleccionado == 1) { EndDrawing(); return crearCharmander(); }
+        if (seleccionado == 2) { EndDrawing(); return crearSquirtle(); }
+        EndDrawing();
+    }
+    return crearBulbasaur();
+}
+
+// ─── MostrarTienda ──────────────────────────────────────────────────────────
+void MostrarTienda(Jugador* jugador) {
+    EsperarSoltarMouse();
+    bool done = false;
+    while (!WindowShouldClose() && !done) {
+        ActualizarInputLock(GetFrameTime());
+        bool locked = IsInputLocked();
+        BeginDrawing();
+        ClearBackground((Color){8,8,20,255});
+        DrawBackgroundExt(texMenuBG, 0.15f);
+        int titleSz = (int)(SH() * 0.07f); if (titleSz < 26) titleSz = 26;
+        DrawText("Z-TIENDA", (int)(CX() - MeasureText("Z-TIENDA", titleSz)/2), (int)(SH()*0.04f), titleSz, GOLD);
+        char infoTxt[128]; sprintf(infoTxt, "Monedas: %ld      Gemas: %d", jugador->monedas, jugador->gemas);
+        DrawText(infoTxt, (int)(CX() - MeasureText(infoTxt, 20)/2), (int)(SH()*0.14f), 20, YELLOW);
+        DrawLineEx((Vector2){SW()*0.1f, SH()*0.2f}, (Vector2){SW()*0.9f, SH()*0.2f}, 1.5f, DARKGRAY);
+        float btnW = SW() * 0.4f; float btnH = SH() * 0.072f;
+        float bx   = CX() - btnW / 2.0f; float gap  = btnH + SH() * 0.015f;
+        float y = SH() * 0.23f;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "Pocion           100 monedas") && !locked) { if (jugador->monedas >= 100) { jugador->monedas -= 100; BloquearInput(0.3f); } }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "Super Pocion     300 monedas") && !locked) { if (jugador->monedas >= 300) { jugador->monedas -= 300; BloquearInput(0.3f); } }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "Revivir          500 monedas") && !locked) { if (jugador->monedas >= 500) { jugador->monedas -= 500; BloquearInput(0.3f); } }
+        y += gap;
+        if (GuiButton((Rectangle){ bx, y, btnW, btnH }, "Gema de Jefe   2000 monedas") && !locked) { if (jugador->monedas >= 2000) { jugador->monedas -= 2000; jugador->gemas++; BloquearInput(0.3f); } }
+        DrawLineEx((Vector2){SW()*0.1f, SH()*0.76f}, (Vector2){SW()*0.9f, SH()*0.76f}, 1.5f, DARKGRAY);
+        float vbW = SW() * 0.22f;
+        if (GuiButton((Rectangle){ CX()-vbW/2, SH()*0.83f, vbW, btnH }, "VOLVER") && !locked) { done = true; BloquearInput(0.8f); }
+        EndDrawing();
+    }
+}
+
+// ─── VerPokemons ────────────────────────────────────────────────────────────
+void VerPokemons(Jugador* jugador) {
+    EsperarSoltarMouse();
+    bool done = false;
+    while (!WindowShouldClose() && !done) {
+        ActualizarInputLock(GetFrameTime());
+        bool locked = IsInputLocked();
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawBackgroundExt(texMenuBG, 0.15f);
+        DrawText("MI EQUIPO", (int)(CX()-MeasureText("MI EQUIPO",32)/2), (int)(SH()*0.03f), 32, YELLOW);
+        float rowH  = SH() * 0.11f; float rowY0 = SH() * 0.12f;
+        float rowW  = SW() * 0.88f; float rowX  = SW() * 0.06f;
+        for (int i = 0; i < jugador->cantidadPokemons; i++) {
+            Pokemon* p = &jugador->pokemons[i]; float ry = rowY0 + i * (rowH + SH()*0.012f);
+            DrawRectangleRounded((Rectangle){rowX, ry, rowW, rowH}, 0.08f, 8, (Color){15,15,40,210});
+            DrawRectangleRoundedLines((Rectangle){rowX, ry, rowW, rowH}, 0.08f, 8, 1, DARKGRAY);
+            DrawPokemonInRect(p->id, (Rectangle){rowX+4, ry+2, rowH-4, rowH-4}, false, WHITE);
+            float tx = rowX + rowH + 10;
+            DrawText(p->nombre, (int)tx, (int)(ry + rowH*0.12f), 20, WHITE);
+            DrawText(TextFormat("Niv. %d", p->nivel), (int)(tx + rowW*0.35f), (int)(ry + rowH*0.12f), 18, YELLOW);
+            float vidaPct = (p->vidaMax > 0) ? (float)p->vida / p->vidaMax : 0.0f;
+            DrawText(TextFormat("HP  %d / %d", p->vida, p->vidaMax), (int)tx, (int)(ry + rowH*0.55f), 16, LIGHTGRAY);
+            DibujarBarraVida((int)(tx + rowW*0.28f), (int)(ry + rowH*0.56f), (int)(rowW*0.55f), (int)(rowH*0.2f), vidaPct);
+        }
+        float vbW = SW() * 0.22f;
+        if (GuiButton((Rectangle){ CX()-vbW/2, SH()*0.91f, vbW, 44 }, "VOLVER") && !locked) { done = true; BloquearInput(0.8f); }
+        EndDrawing();
+    }
+}

@@ -1,48 +1,60 @@
 #ifndef Utils_H
 #define Utils_H
 
+#include <stdint.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdarg.h>
+#include "raylib.h"
 #include "Pokemon.h"
 
+// UI System
 void BorrarPantallaCompleta();
-void RegistrarError(const char* msg);
-void ImprimirErrores();
-void LimpiarErrores();
-int HayErrores();
-void EscribirLento(const char* texto, int ms);
-void ImprimirTipoBadge(tipoPokemon t);
-void SetRenderState(int state);
-void SetCombatSprites(int pID, int rID);
-int GetRenderState();
-void LimpiarArea(int x, int y, int w, int h);
 void MoverCursor(int x, int y);
 void CambiarColor(int color);
-void DibujarCajaUTF8(int x, int y, int w, int h, int color);
+void DibujarCajaUTF8(int x, int y, int ancho, int alto, int color);
+void DibujarRectangulo(int x, int y, int ancho, int alto);
+void LimpiarArea(int x, int y, int ancho, int alto);
+void ProcesarMensajes();
 
-#include <stdint.h>
+// Raylib / Graphical Interface
+void TerminalPrint(const char* fmt, ...);
+int GetCentroX();
+void RenderRaylibFrame();
+void DibujarBarraVida(int x, int y, int w, int h, float pct);
+void DrawPokemonSprite(int id, int x, int y, float scale, bool flip);
 
-void UpdateVirtualCursor(int x, int y);
-int GetVirtualCursorX();
-int GetVirtualCursorY();
-void UpdateVirtualColor(int color);
-void ClearVirtualBuffer();
-void VirtualPrint(const char* s);
-#include <stdio.h>
-#include <stdarg.h>
+// Helpers responsivos
+float SW();
+float SH();
+float CX();
+float CY();
+void DrawBackgroundExt(Texture2D tex, float alpha);
 
-void VirtualPrintf(const char* format, ...);
-uint32_t GetVirtualChar(int x, int y);
-int GetVirtualColor(int x, int y);
-int ProcesarMensajes();
-uint32_t GetLastChar();
+// Sistema de Estilos y Tipos
+void InitGameStyle();
+Color GetTipoColor(tipoPokemon t);
+float GetEfectividad(tipoPokemon tAtk, tipoPokemon tDef);
+void DrawTypeIcon(tipoPokemon t, Vector2 pos, float size);
 
-#if defined(ANDROID) || defined(_WIN32)
-#undef printf
-#define printf(...) VirtualPrintf(__VA_ARGS__)
-#endif
+// Sistema de Input (Anti-Martilleo)
+void ActualizarInputLock(float dt);
+bool IsInputLocked();
+void BloquearInput(float duracion);
+void EsperarSoltarMouse();
+void WaitMs(int ms);
 
-#ifdef ANDROID
-#include <SDL.h>
-#define Sleep(ms) SDL_Delay(ms)
-#endif
+// Decoración
+void ImprimirTipoBadge(tipoPokemon t);
+void ImprimirCentrado(int y, const char* texto, int color);
+void RegistrarError(const char* msg);
+void LogDebug(const char* fmt, ...);
+void MostrarPantallaLogs();
+void ImprimirErrores();
+int HayErrores();
+const char* GetWinErrorStr(int err);
+
+// Redefinimos printf para que todo el código existente imprima en la ventana Raylib
+#define printf(...) LogDebug(__VA_ARGS__)
 
 #endif

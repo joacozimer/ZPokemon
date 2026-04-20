@@ -46,6 +46,7 @@ void InicializarStarters(Pokemon* p) {
     for(int i=0; i<4; i++) p->movimientos[i].nombre[0] = '\0';
     p->movimientos[0] = crearPlacaje();
     CalcularStats(p);
+    p->vidaVisual = (float)p->vida;
 }
 
 Pokemon crearBulbasaur(){
@@ -84,5 +85,41 @@ Pokemon crearSquirtle(){
   p.vidaMax = 0;
   InicializarStarters(&p);
   p.movimientos[1] = crearBurbuja();
+  return p;
+}
+
+Pokemon crearPikachu() {
+  Pokemon p;
+  strncpy(p.nombre, "Pikachu", 255);
+  p.tipo[0] = ELECTRICO; p.tipo[1] = VACIO;
+  p.bVida = 35; p.bAtk = 55; p.bDef = 40; p.bAtkSp = 50; p.bDefSp = 50; p.bVel = 90;
+  p.curva = MEDIO_RAPIDO;
+  p.id = 3; // Pikachu
+  p.vidaMax = 0;
+  InicializarStarters(&p);
+  return p;
+}
+
+Pokemon crearEevee() {
+  Pokemon p;
+  strncpy(p.nombre, "Eevee", 255);
+  p.tipo[0] = NORMAL; p.tipo[1] = VACIO;
+  p.bVida = 55; p.bAtk = 55; p.bDef = 50; p.bAtkSp = 45; p.bDefSp = 65; p.bVel = 55;
+  p.curva = MEDIO_RAPIDO;
+  p.id = 4; // Eevee
+  p.vidaMax = 0;
+  InicializarStarters(&p);
+  return p;
+}
+
+Pokemon crearMew() {
+  Pokemon p;
+  strncpy(p.nombre, "Mew", 255);
+  p.tipo[0] = PSIQUICO; p.tipo[1] = VACIO;
+  p.bVida = 100; p.bAtk = 100; p.bDef = 100; p.bAtkSp = 100; p.bDefSp = 100; p.bVel = 100;
+  p.curva = MEDIO_LENTO;
+  p.id = 5; // Mew
+  p.vidaMax = 0;
+  InicializarStarters(&p);
   return p;
 }

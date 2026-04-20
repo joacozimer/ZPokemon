@@ -23,6 +23,7 @@ typedef struct {
   
   long exp;
   int id;
+  float vidaVisual; // Para animación suave de la barra de vida
   CurvaExp curva;
   
   estadoPokemon estado;
@@ -36,6 +37,9 @@ long GetExpNecesaria(int nivel, CurvaExp curva);
 Pokemon crearBulbasaur();
 Pokemon crearCharmander();
 Pokemon crearSquirtle();
+Pokemon crearPikachu();
+Pokemon crearEevee();
+Pokemon crearMew();
 void InicializarStarters(Pokemon* p);
 
 #endif
